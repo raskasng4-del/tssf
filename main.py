@@ -42,14 +42,27 @@ def get_latest():
     return None
 
 def download_video(url, path="input.mp4"):
-    r = subprocess.run(["yt-dlp", "-f", "bestaudio[ext=m4a]", "-o", path,
-                        "--no-progress", "--retries", "10", url],
-                       capture_output=True, text=True)
-    if r.returncode != 0:
-        print("yt-dlp STDERR:", r.stderr[:2000])
-        print("yt-dlp STDOUT:", r.stdout[:500])
-        r.check_returncode()
-    return path
+    cookies = os.environ.get("YT_COOKIES")
+    cookies_args = ["--cookies", "yt_cookies.txt"] if cookies else []
+
+    strategies = [
+        ["--js-runtimes", "deno", "-f", "bestaudio[ext=m4a]"],
+        ["--js-runtimes", "node", "-f", "bestaudio[ext=m4a]"],
+        ["--extractor-args", "youtube:player_client=android", "-f", "18"],
+        ["-f", "best"],
+    ]
+
+    for strat in strategies:
+        cmd = ["yt-dlp", "-o", path, "--no-progress",
+               "--retries", "10", "--verbose"] + cookies_args + strat + [url]
+        print(f"yt-dlp trying: {' '.join(strat)}")
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        if r.returncode == 0 and os.path.exists(path) and os.path.getsize(path) > 10000:
+            print(f"yt-dlp success with: {' '.join(strat)}")
+            return path
+        print(f"  failed (rc={r.returncode}): {r.stderr[-300:]}")
+
+    raise RuntimeError("All yt-dlp strategies failed")
 
 print("🔍 جلب أحدث فيديو...")
 video = get_latest()
