@@ -19,12 +19,16 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: 📦 Install FFmpeg + Node.js + deps
+      - name: 📦 Install FFmpeg + Deno + Node.js + deps
         run: |
           sudo apt-get update -q
           sudo apt-get install -y ffmpeg nodejs
+          curl -fsSL https://deno.land/install.sh | sh
+          export PATH="$HOME/.deno/bin:$PATH"
+          echo "$HOME/.deno/bin" >> $GITHUB_PATH
           pip install -r requirements.txt
           pip install -U yt-dlp
+          which deno
 
       - name: 🤖 Run bot
         run: python main.py
@@ -38,6 +42,6 @@ jobs:
         run: |
           git config user.name "podcast-bot"
           git config user.email "bot@github.com"
-          git add state.json input.mp4 podcast_episode.mp4 assets/
+          git add state.json
           git diff --cached --quiet || git commit -m "📊 Update state - $(date +%Y-%m-%d)"
           git push
