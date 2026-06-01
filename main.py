@@ -42,10 +42,13 @@ def get_latest():
     return None
 
 def download_video(url, path="input.mp4"):
-    # نحتاجو الصوت والفيديو بس خلينا audio باش المونتاج يشتغل
-    # (visualizer + خلفية، ما نحتاجوش الفيديو الأصلي)
-    subprocess.run(["yt-dlp", "-f", "bestaudio[ext=m4a]", "-o", path,
-                    "--no-progress", url], check=True, capture_output=True)
+    r = subprocess.run(["yt-dlp", "-f", "bestaudio[ext=m4a]", "-o", path,
+                        "--no-progress", "--retries", "10", url],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        print("yt-dlp STDERR:", r.stderr[:2000])
+        print("yt-dlp STDOUT:", r.stdout[:500])
+        r.check_returncode()
     return path
 
 print("🔍 جلب أحدث فيديو...")
