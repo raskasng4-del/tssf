@@ -1,0 +1,42 @@
+name: "🎙️ Podcast Bot Daily"
+
+on:
+  schedule:
+    - cron: "0 17 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  podcast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "🐍 Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: "📦 Install FFmpeg + deps"
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y ffmpeg
+          pip install -r requirements.txt
+
+      - name: "🤖 Run bot"
+        run: python main.py
+        env:
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          CHANNEL_URL: ${{ secrets.CHANNEL_URL }}
+
+      - name: "💾 Save state"
+        run: |
+          git config user.name "podcast-bot"
+          git config user.email "bot@github.com"
+          git add state.json input.mp4 podcast_episode.mp4 assets/
+          git diff --cached --quiet || git commit -m "📊 Update state - $(date +%Y-%m-%d)"
+          git push
