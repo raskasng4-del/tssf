@@ -45,22 +45,45 @@ def download_video(url, path="input.mp4"):
     cookies = os.environ.get("YT_COOKIES")
     cookies_args = ["--cookies", "yt_cookies.txt"] if cookies else []
 
+    # First, dump video info for debugging
+    info = subprocess.run(["yt-dlp", "--dump-json", "--flat-playlist",
+                           url], capture_output=True, text=True, timeout=30)
+    if info.returncode == 0 and info.stdout.strip():
+        import json as j
+        try: print("  video:", j.dumps(j.loads(info.stdout), indent=2)[:600])
+        except: pass
+
+    base = ["-o", path, "--no-progress", "--retries", "5",
+            "--verbose", "--force-ipv4",
+            "--sleep-requests", "1", "--sleep-interval", "3",
+            "--geo-bypass"]
+
     strategies = [
-        ["--js-runtimes", "deno", "-f", "bestaudio[ext=m4a]"],
-        ["--js-runtimes", "node", "-f", "bestaudio[ext=m4a]"],
+        ["--extractor-args", "youtube:player_client=ios", "-f", "bestaudio[ext=m4a]"],
+        ["--extractor-args", "youtube:player_client=ios", "-f", "best"],
+        ["--extractor-args", "youtube:player_client=android_creator", "-f", "best"],
+        ["--user-agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36",
+         "-f", "bestaudio[ext=m4a]"],
         ["--extractor-args", "youtube:player_client=android", "-f", "18"],
+        ["--extractor-args", "youtube:player_client=android", "-f", "22"],
+        ["--extractor-args", "youtube:player_client=web", "--js-runtimes", "deno", "-f", "best"],
+        ["--js-runtimes", "node", "-f", "best"],
+        ["--extractor-args", "youtube:skip=dash,webpage,hls", "-f", "best"],
         ["-f", "best"],
     ]
 
     for strat in strategies:
-        cmd = ["yt-dlp", "-o", path, "--no-progress",
-               "--retries", "10", "--verbose"] + cookies_args + strat + [url]
+        cmd = ["yt-dlp"] + base + cookies_args + strat + [url]
         print(f"yt-dlp trying: {' '.join(strat)}")
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
         if r.returncode == 0 and os.path.exists(path) and os.path.getsize(path) > 10000:
             print(f"yt-dlp success with: {' '.join(strat)}")
             return path
-        print(f"  failed (rc={r.returncode}): {r.stderr[-300:]}")
+        # Print first and last parts of stderr
+        head = r.stderr[:300]
+        tail = r.stderr[-500:]
+        print(f"  rc={r.returncode}: {head}")
+        print(f"  ...{tail}")
 
     raise RuntimeError("All yt-dlp strategies failed")
 
